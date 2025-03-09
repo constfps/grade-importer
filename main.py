@@ -60,8 +60,8 @@ def main(stdscr: curses.window):
 
             key = stdscr.getch()
 
-            key_ups = [curses.KEY_UP, 115, 97]
-            key_downs = [curses.KEY_DOWN, 119, 100]
+            key_ups = [curses.KEY_UP, 119, 97]
+            key_downs = [curses.KEY_DOWN, 115, 100]
 
             try:
                 if key in key_downs:
