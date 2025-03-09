@@ -2,8 +2,8 @@ import gspread
 import json
 from google.oauth2.service_account import Credentials
 from selenium import webdriver
-from selenium.webdriver.firefox.service import Service
-from webdriver_manager.firefox import GeckoDriverManager
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -30,7 +30,7 @@ sectionid = ids_sheet.get_worksheet(0).acell('C14').value
 with open('cookies.json', 'r') as file:
     cookies = json.load(file)
 
-driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()))
+driver = webdriver.Firefox(service=Service(ChromeDriverManager().install()))
 
 #to fix cookie adverse issues
 driver.get("https://codehs.com")
