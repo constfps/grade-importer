@@ -30,7 +30,7 @@ sectionid = ids_sheet.get_worksheet(0).acell('C14').value
 with open('cookies.json', 'r') as file:
     cookies = json.load(file)
 
-driver = webdriver.Firefox(service=Service(ChromeDriverManager().install()))
+driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
 
 #to fix cookie adverse issues
 driver.get("https://codehs.com")
