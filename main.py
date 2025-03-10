@@ -2,6 +2,8 @@ import gspread
 import json
 import re
 import curses
+import timeit
+import datetime
 from curses import wrapper
 from curses.textpad import Textbox
 from google.oauth2.service_account import Credentials
@@ -12,6 +14,8 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import time
+
+start_time = timeit.default_timer()
 
 scopes = [
     "https://www.googleapis.com/auth/spreadsheets"
@@ -227,8 +231,8 @@ if student_selection == "all":
         try:
             student_info = ids_sheet.get("A2:C14", return_type=gspread.utils.GridRangeType.ListOfLists, major_dimension=gspread.utils.Dimension.cols)
         except:
-            time.sleep(61)
             print("API Limit Reached. Waiting for a minute")
+            time.sleep(61)
         else:
             break
 
@@ -242,8 +246,8 @@ elif student_selection[0] == "range":
             maxrow = ids_sheet.find(re.compile(student_selection[2])).row
             student_info = ids_sheet.get(f"A{minrow}:C{maxrow}", return_type=gspread.utils.GridRangeType.ListOfLists, major_dimension=gspread.utils.Dimension.cols)
         except:
-            time.sleep(61)
             print("API Limit Reached. Waiting for a minute")
+            time.sleep(61)
         else:
             break
 
@@ -256,8 +260,8 @@ else:
             try:
                 studentrow = ids_sheet.find(re.compile(student)).row
             except:
-                time.sleep(61)
                 print("API Limit Reached. Waiting for a minute")
+                time.sleep(61)
             else:
                 break
         
@@ -285,7 +289,7 @@ for item in cookies:
     })
 
 # iterate through every student
-for student in range(0, len(studentnames)):
+for student in list(range(0, len(studentnames))):
     driver.get("https://codehs.com/student/" + studentids[student] + "/section/" + sectionids[student] + "/assignments")
     for i in range(50):
         try:
@@ -419,7 +423,7 @@ for student in range(0, len(studentnames)):
                                 exercise_sum += int(grade)
             
             # print results
-            print(f"{studentnames[student].split(", "[1])}'s {target_module}.{submodule} scores:")
+            print(f"{studentnames[student].split(", ")[1]}'s {target_module}.{submodule} scores:")
             print(f"Quiz: {quiz_sum}")
             print(f"Examples: {examples_sum}")
             print(f"Programs: {exercise_sum}\n")
@@ -432,8 +436,8 @@ for student in range(0, len(studentnames)):
                                 try:
                                     submodulecell = grades_sheet.find(f"{target_module}.{submodule} Examples")
                                 except gspread.exceptions.APIError:
-                                    time.sleep(61)
                                     print("API Limit Reached. Waiting for a minute")
+                                    time.sleep(61)
                                 else:
                                     break
                             col = submodulecell.col
@@ -447,8 +451,8 @@ for student in range(0, len(studentnames)):
                                 try:
                                     submodulecell = grades_sheet.find(f"{target_module}.{submodule} Programs")
                                 except:
-                                    time.sleep(61)
                                     print("API Limit Reached. Waiting for a minute")
+                                    time.sleep(61)
                                 else:
                                     break
                             col = submodulecell.col
@@ -460,8 +464,8 @@ for student in range(0, len(studentnames)):
                             try:
                                 col = grades_sheet.find(f"{target_module}.{submodule} Quiz").col
                             except:
-                                time.sleep(61)
                                 print("API Limit Reached. Waiting for a minute")
+                                time.sleep(61)
                             else:
                                 break
                         temp = quiz_sum
@@ -470,8 +474,8 @@ for student in range(0, len(studentnames)):
                     try:
                         row = grades_sheet.find(studentnames[student]).row
                     except:
-                        time.sleep(61)
                         print("API Limit Reached. Waiting for a minute")
+                        time.sleep(61)
                     else:
                         break
                 cell = gspread.cell.Cell(row, col)
@@ -480,8 +484,8 @@ for student in range(0, len(studentnames)):
                     try:
                         grades_sheet.update_acell(cell.address, temp)
                     except:
-                        time.sleep(61)
                         print("API Limit Reached. Waiting for a minute")
+                        time.sleep(61)
                     else:
                         break
 
@@ -505,6 +509,9 @@ for student in range(0, len(studentnames)):
                 )
 
                 inpage = False
+
+elapsed_time = timeit.default_timer() - start_time
+print(f"Took {str(datetime.timedelta(seconds=elapsed_time))} seconds")
 
 time.sleep(5)
 driver.close()
