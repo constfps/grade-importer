@@ -46,7 +46,8 @@ def main(stdscr: curses.window):
 
             stdscr.addstr("1. Single\n")
             stdscr.addstr("2. Multiple\n")
-            stdscr.addstr("3. All")
+            stdscr.addstr("3. Range\n")
+            stdscr.addstr("4. All")
             
             match current_selection:
                 case 1:
@@ -54,7 +55,9 @@ def main(stdscr: curses.window):
                 case 2:
                     stdscr.addstr(2, 0, "2. Multiple", curses.A_REVERSE)
                 case 3:
-                    stdscr.addstr(3, 0, "3. All", curses.A_REVERSE)
+                    stdscr.addstr(3, 0, "3. Range", curses.A_REVERSE)
+                case 4: 
+                    stdscr.addstr(4, 0, "4. All", curses.A_REVERSE)
 
             stdscr.refresh()
 
@@ -68,12 +71,12 @@ def main(stdscr: curses.window):
                     current_selection += 1
                 elif key in key_ups:
                     current_selection -= 1
-                assert current_selection < 4 and current_selection > 0
+                assert current_selection < 5 and current_selection > 0
             except:
-                if key in key_downs:
-                    current_selection -= 1
-                elif key in key_ups:
-                    current_selection += 1
+                if current_selection == 5:
+                    current_selection = 1
+                elif current_selection == 0:
+                    current_selection = 4
 
             if key == 10 or key == 32:
                 entered_selections.append(current_selection)
@@ -106,6 +109,15 @@ def main(stdscr: curses.window):
                         box.edit()
                         student_selection = box.gather().strip().title().split(" ")
                     case 3:
+                        stdscr.addstr("Enter first and last student (separate with space)")
+                        win = curses.newwin(1, 30, 1, 0)
+                        box = Textbox(win)
+
+                        stdscr.refresh()
+                        box.edit()
+                        student_selection = ["range"]
+                        student_selection.extend(box.gather().strip().title().split(" "))
+                    case 4:
                         student_selection = "all"
             case "module":
                 match selection_dict[selection_type]:
@@ -126,7 +138,16 @@ def main(stdscr: curses.window):
                         box.edit()
                         module_selection = [int(x) for x in box.gather().strip().split(" ")]
                     case 3:
-                        module_selection = range(1, 11)
+                        stdscr.addstr("Enter min and max module (separate with space)")
+                        win = curses.newwin(1, 30, 1, 0)
+                        box = Textbox(win)
+
+                        stdscr.refresh()
+                        box.edit()
+                        temp = box.gather().strip().split(" ")
+                        module_selection = list(range(int(temp[0]), int(temp[1]) + 1))
+                    case 4:
+                        module_selection = list(range(1, 11))
             case "submodule":
                 match selection_dict[selection_type]:
                     case 1:
@@ -168,21 +189,81 @@ def main(stdscr: curses.window):
                             box.edit()
                             submodule_selection.setdefault(module_selection, [int(x) for x in box.gather().strip().split(" ")])
                     case 3:
+                        if type(module_selection) == list:
+                            for i in module_selection:
+                                stdscr.clear()
+                                stdscr.addstr(f"Enter min and max submodule for Module {i} (separate with space)")
+                                win = curses.newwin(1, 30, 1, 0)
+                                box = Textbox(win)
+
+                                stdscr.refresh()
+                                box.edit()
+                                temp = box.gather().strip().split(" ")
+                                submodule_selection.setdefault(i, list(range(int(temp[0]), int(temp[1]) + 1)))
+                        else:
+                            stdscr.addstr(f"Enter min and max submodule for Module {module_selection} (separate with space)")
+                            win = curses.newwin(1, 30, 1, 0)
+                            box = Textbox(win)
+
+                            stdscr.refresh()
+                            box.edit()
+                            temp = box.gather().strip().split(" ")
+                            submodule_selection.setdefault(module_selection, list(range(int(temp[0]), int(temp[1]) + 1)))
+                    case 4:
                         submodule_selection = "all"
 
 wrapper(main)
+
+inpage = True
 
 # get student(s) info
 studentnames = []
 studentids = []
 sectionids = []
 
-for student in student_selection:
-    studentrow = ids_sheet.find(re.compile(student)).row
-    
-    studentnames.append(ids_sheet.cell(studentrow, 1).value)
-    studentids.append(ids_sheet.cell(studentrow, 2).value)
-    sectionids.append(ids_sheet.cell(studentrow, 3).value)
+
+if student_selection == "all":
+    for i in range(50):
+        try:
+            student_info = ids_sheet.get("A2:C14", return_type=gspread.utils.GridRangeType.ListOfLists, major_dimension=gspread.utils.Dimension.cols)
+        except:
+            time.sleep(61)
+            print("API Limit Reached. Waiting for a minute")
+        else:
+            break
+
+    studentnames = student_info[0]
+    studentids = student_info[1]
+    sectionids = student_info[2]
+elif student_selection[0] == "range":
+    for i in range(50):
+        try:
+            minrow = ids_sheet.find(re.compile(student_selection[1])).row
+            maxrow = ids_sheet.find(re.compile(student_selection[2])).row
+            student_info = ids_sheet.get(f"A{minrow}:C{maxrow}", return_type=gspread.utils.GridRangeType.ListOfLists, major_dimension=gspread.utils.Dimension.cols)
+        except:
+            time.sleep(61)
+            print("API Limit Reached. Waiting for a minute")
+        else:
+            break
+
+    studentnames = student_info[0]
+    studentids = student_info[1]
+    sectionids = student_info[2]
+else:
+    for student in student_selection:
+        for i in range(50):
+            try:
+                studentrow = ids_sheet.find(re.compile(student)).row
+            except:
+                time.sleep(61)
+                print("API Limit Reached. Waiting for a minute")
+            else:
+                break
+        
+        studentnames.append(ids_sheet.cell(studentrow, 1).value)
+        studentids.append(ids_sheet.cell(studentrow, 2).value)
+        sectionids.append(ids_sheet.cell(studentrow, 3).value)
 
 if module_selection == "all":
     module_selection = range(1, 11)
@@ -204,18 +285,41 @@ for item in cookies:
     })
 
 # iterate through every student
-for student in range(0, len(student_selection)):
+for student in range(0, len(studentnames)):
+    driver.get("https://codehs.com/student/" + studentids[student] + "/section/" + sectionids[student] + "/assignments")
+    for i in range(50):
+        try:
+            WebDriverWait(driver, 5).until(
+            EC.presence_of_element_located((
+                By.XPATH, "//span[text()='Unit 0: Nitro']"
+            )))
+        except:
+            driver.refresh()
+            time.sleep(1)
+        else:
+            break
+    inpage = False
+    
     # iterate through every module
     for target_module in module_selection:
         #go to assignments page and wait and click on main module
-        driver.get("https://codehs.com/student/" + studentids[student] + "/section/" + sectionids[student] + "/assignments")
-        WebDriverWait(driver, 5).until(
-            EC.presence_of_element_located((
-                By.XPATH, f"//span[text()='Unit {target_module}: Nitro']"
-            ))
-        )
+        if inpage:
+            driver.get("https://codehs.com/student/" + studentids[student] + "/section/" + sectionids[student] + "/assignments")
+            for i in range(50):
+                try:
+                    WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((
+                        By.XPATH, f"//span[text()='Unit {target_module}: Nitro']"
+                    )))
+                except:
+                    driver.refresh()
+                    time.sleep(1)
+                else:
+                    break
+            
         driver.find_element(By.XPATH, f"//span[text()='Unit {target_module}: Nitro']").click()
-        time.sleep(0.5)
+        time.sleep(1)
+        inpage = False
 
         #wait for sub-modules to load
         WebDriverWait(driver, 5).until(
@@ -265,26 +369,47 @@ for student in range(0, len(student_selection)):
             # iterate through every micro module and add to score counter
             for module in modules:
                 if modules[module] in module_type:
-                    driver.get(module)
-                    
-                    if (modules[module] == "quiz"):
-                        WebDriverWait(driver, 5).until(EC.presence_of_element_located((
-                            By.CLASS_NAME, "num-correct"
-                        )))
-
+                    if modules[module] == "quiz":
+                        driver.get(module)
+                        inpage = True
+                        for i in range(50):
+                            try:
+                                WebDriverWait(driver, 5).until(EC.presence_of_element_located((
+                                    By.CLASS_NAME, "num-correct"
+                                )))
+                            except:
+                                driver.refresh()
+                            else:
+                                break
                         # will always be a number even if unattempted
                         quiz_sum += int(driver.find_element(By.CLASS_NAME, "num-correct").text)
+                    elif modules[module] == "example":
+                        examples_sum += 1
                     else:
-                        WebDriverWait(driver, 5).until(EC.presence_of_element_located((
-                            By.XPATH, "//div[text()='Grade']"
-                        )))
+                        driver.get(module)
+                        inpage = True
+                        for i in range(50):
+                            try:
+                                WebDriverWait(driver, 5).until(EC.presence_of_element_located((
+                                    By.XPATH, "//div[text()='Grade']"
+                                )))
+                            except:
+                                driver.refresh()
+                            else:
+                                break
+
                         driver.find_element(By.XPATH, "//div[text()='Grade']").click()
                         
-                        WebDriverWait(driver, 5).until(EC.presence_of_element_located((
-                            By.CLASS_NAME, "grade-score"
-                        )))
-                        # sometimes grade-score loads without text for a bit so wait a bit more
-                        time.sleep(0.1)
+                        for i in range(50):
+                            try:
+                                WebDriverWait(driver, 5).until(EC.presence_of_element_located((
+                                    By.CLASS_NAME, "grade-score"
+                                )))
+                            except:
+                                driver.refresh()
+                            else:
+                                break
+
                         grade = driver.find_element(By.CLASS_NAME, "grade-score").text
 
                         if grade.isnumeric():
@@ -294,53 +419,92 @@ for student in range(0, len(student_selection)):
                                 exercise_sum += int(grade)
             
             # print results
-            print(f"{target_module}.{submodule} scores:")
+            print(f"{studentnames[student].split(", "[1])}'s {target_module}.{submodule} scores:")
             print(f"Quiz: {quiz_sum}")
             print(f"Examples: {examples_sum}")
-            print(f"Programs: {exercise_sum}")
+            print(f"Programs: {exercise_sum}\n")
 
             for type in module_type:
                 match type:
                     case "example":
                         try:
-                            col = grades_sheet.find(f"{target_module}.{submodule} Examples").col
+                            for i in range(50):
+                                try:
+                                    submodulecell = grades_sheet.find(f"{target_module}.{submodule} Examples")
+                                except gspread.exceptions.APIError:
+                                    time.sleep(61)
+                                    print("API Limit Reached. Waiting for a minute")
+                                else:
+                                    break
+                            col = submodulecell.col
                         except:
                             continue
+
                         temp = examples_sum
                     case "exercise":
                         try:
-                            col = grades_sheet.find(f"{target_module}.{submodule} Programs").col
+                            for i in range(50):
+                                try:
+                                    submodulecell = grades_sheet.find(f"{target_module}.{submodule} Programs")
+                                except:
+                                    time.sleep(61)
+                                    print("API Limit Reached. Waiting for a minute")
+                                else:
+                                    break
+                            col = submodulecell.col
                         except:
                             continue
                         temp = exercise_sum
                     case "quiz":
-                        col = grades_sheet.find(f"{target_module}.{submodule} Quiz").col
+                        for i in range(50):
+                            try:
+                                col = grades_sheet.find(f"{target_module}.{submodule} Quiz").col
+                            except:
+                                time.sleep(61)
+                                print("API Limit Reached. Waiting for a minute")
+                            else:
+                                break
                         temp = quiz_sum
             
-                row = grades_sheet.find(studentnames[student]).row
+                for i in range(50):
+                    try:
+                        row = grades_sheet.find(studentnames[student]).row
+                    except:
+                        time.sleep(61)
+                        print("API Limit Reached. Waiting for a minute")
+                    else:
+                        break
                 cell = gspread.cell.Cell(row, col)
                 
-                grades_sheet.update_acell(cell.address, temp)
+                for i in range(50):
+                    try:
+                        grades_sheet.update_acell(cell.address, temp)
+                    except:
+                        time.sleep(61)
+                        print("API Limit Reached. Waiting for a minute")
+                    else:
+                        break
 
-            # go back to initial assignments page
-            driver.get("https://codehs.com/student/" + studentids[student] + "/section/" + sectionids[student] + "/assignments")
-            WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located((
-                    By.XPATH, f"//span[text()='Unit {target_module}: Nitro']"
-                ))
-            )
-            driver.find_element(By.XPATH, f"//span[text()='Unit {target_module}: Nitro']").click()
+            if inpage:
+                # go back to initial assignments page
+                driver.get("https://codehs.com/student/" + studentids[student] + "/section/" + sectionids[student] + "/assignments")
+                WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((
+                        By.XPATH, f"//span[text()='Unit {target_module}: Nitro']"
+                    ))
+                )
+                driver.find_element(By.XPATH, f"//span[text()='Unit {target_module}: Nitro']").click()
+                time.sleep(1)
 
-            #wait for sub-modules to load
-            WebDriverWait(driver, 5).until(
-                EC.presence_of_element_located((
-                    By.XPATH, 
-                    f"//div[@class='lazy-wrap']"
-                ))
-            )
+                # wait for sub-modules to load
+                WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((
+                        By.XPATH, 
+                        f"//div[@class='lazy-wrap']"
+                    ))
+                )
 
-            # to avoid rate limiter
-            time.sleep(2)
+                inpage = False
 
 time.sleep(5)
 driver.close()
