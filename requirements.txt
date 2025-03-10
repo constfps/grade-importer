@@ -52,6 +52,7 @@ websockets==15.0.1
 win_inet_pton==1.1.0
 wsaccel==0.6.7
 xmlrpclib==1.0.1
+<<<<<<< HEAD
 zstandard==0.23.0attrs==25.1.0
 cachetools==5.5.2
 certifi==2025.1.31
