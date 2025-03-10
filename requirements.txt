@@ -4,6 +4,7 @@ black==25.1.0
 blinker==1.9.0
 brotli==1.1.0
 brotlicffi==1.1.0.0
+ca_certs_locater==1.0
 cffi==1.17.1
 chardet==5.2.0
 click==8.1.8
@@ -15,9 +16,10 @@ curio==1.6
 docutils==0.21.2
 exceptiongroup==1.2.2
 filelock==3.17.0
+grpc_status==1.0.0
 h2==4.2.0
 HTMLParser==0.0.2
-hypothesis==6.127.9
+hypothesis==6.128.2
 ipython==8.12.3
 ipywidgets==8.1.5
 isort==6.0.1
@@ -37,9 +39,10 @@ pytest==8.3.5
 python_socks==2.7.1
 pyu2f==0.1.5
 PyYAML==6.0.2
+railroad==0.5.0
 redis==5.2.1
 ruff==0.9.10
-setuptools==75.9.1
+setuptools==76.0.0
 simplejson==3.20.1
 Sphinx==8.2.3
 thread==2.0.5
