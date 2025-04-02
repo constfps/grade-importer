@@ -8,8 +8,8 @@ from curses import wrapper
 from curses.textpad import Textbox
 from google.oauth2.service_account import Credentials
 from selenium import webdriver
-from selenium.webdriver.firefox.service import Service
-from webdriver_manager.firefox import GeckoDriverManager
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
@@ -23,11 +23,6 @@ scopes = [
 cred = Credentials.from_service_account_file("keys.json", scopes=scopes)
 client = gspread.authorize(cred)
 
-ids_sheet_id = "1DJ2Q8NHtYyrINqI8JiZGvh2F52R7Z06Qmb3_cQpLguQ"
-ids_sheet = client.open_by_key(ids_sheet_id).get_worksheet(0)
-
-grades_sheet_id = "1jEcSOD_5aTKX77XKgWjY5RSveHfXF3c6Op58tApObNA"
-grades_sheet = client.open_by_key(grades_sheet_id).get_worksheet(1)
 
 student_selection = []
 module_selection = []
@@ -216,6 +211,21 @@ def main(stdscr: curses.window):
                     case 4:
                         submodule_selection = "all"
 
+print("Make sure to share the spreadsheet to rei727@grader-453104.iam.gserviceaccount.com")
+while True:
+    ids_sheet_id = input("Enter the ID of the spreadsheet with students' CodeHS ID: ")
+    ids_sheet_index = int(input("Enter the index of the sheet (from 0): "))
+
+    grades_sheet_id = input("Enter the ID of the speadsheet to put the grades in: ")
+    grades_sheet_index = int(input("Enter the index of the sheet (from 0): "))
+
+    try:
+        ids_sheet = client.open_by_key(ids_sheet_id).get_worksheet(ids_sheet_index)
+        grades_sheet = client.open_by_key(grades_sheet_id).get_worksheet(grades_sheet_index)
+        break
+    except Exception as e:
+        print("An Error Occured: " + e)
+
 wrapper(main)
 
 inpage = True
@@ -230,9 +240,13 @@ if student_selection == "all":
     for i in range(50):
         try:
             student_info = ids_sheet.get("A2:C14", return_type=gspread.utils.GridRangeType.ListOfLists, major_dimension=gspread.utils.Dimension.cols)
-        except:
+        except gspread.exceptions.APIError:
             print("API Limit Reached. Waiting for a minute")
             time.sleep(61)
+        except Exception as e:
+            print(e)
+            time.sleep(60)
+            exit()
         else:
             break
 
@@ -245,9 +259,13 @@ elif student_selection[0] == "range":
             minrow = ids_sheet.find(re.compile(student_selection[1])).row
             maxrow = ids_sheet.find(re.compile(student_selection[2])).row
             student_info = ids_sheet.get(f"A{minrow}:C{maxrow}", return_type=gspread.utils.GridRangeType.ListOfLists, major_dimension=gspread.utils.Dimension.cols)
-        except:
+        except gspread.exceptions.APIError:
             print("API Limit Reached. Waiting for a minute")
             time.sleep(61)
+        except Exception as e:
+            print(e)
+            time.sleep(60)
+            exit()
         else:
             break
 
@@ -259,9 +277,13 @@ else:
         for i in range(50):
             try:
                 studentrow = ids_sheet.find(re.compile(student)).row
-            except:
+            except gspread.exceptions.APIError:
                 print("API Limit Reached. Waiting for a minute")
                 time.sleep(61)
+            except Exception as e:
+                print(e);
+                time.sleep(60)
+                exit()
             else:
                 break
         
@@ -276,7 +298,7 @@ if module_selection == "all":
 with open('cookies.json', 'r') as file:
     cookies = json.load(file)
 
-driver = webdriver.Firefox(service=Service(GeckoDriverManager().install()))
+driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
 
 #preload to fix cookie adverse issues
 driver.get("https://codehs.com")
@@ -334,7 +356,7 @@ for student in list(range(0, len(studentnames))):
         )
 
         # set max sub-module count
-        target_module_max = len(driver.find_elements(By.XPATH, "//div[@class='lazy-wrap']/div"))
+        target_module_max = len(driver.find_elements(By.XPATH, "//div[@class='lessons-sec module-expand']/div[@class='lazy-wrap']/div[@class='lesson-sec']"))
 
         # set sub-modules selection appropriately if all mode is selected
         if submodule_selection == "all":
@@ -423,7 +445,7 @@ for student in list(range(0, len(studentnames))):
                                 exercise_sum += int(grade)
             
             # print results
-            print(f"{studentnames[student].split(", ")[1]}'s {target_module}.{submodule} scores:")
+            print(f"{studentnames[student]}'s {target_module}.{submodule} scores:")
             print(f"Quiz: {quiz_sum}")
             print(f"Examples: {examples_sum}")
             print(f"Programs: {exercise_sum}\n")
@@ -438,6 +460,10 @@ for student in list(range(0, len(studentnames))):
                                 except gspread.exceptions.APIError:
                                     print("API Limit Reached. Waiting for a minute")
                                     time.sleep(61)
+                                except Exception as e:
+                                    print(e)
+                                    time.sleep(60)
+                                    exit()
                                 else:
                                     break
                             col = submodulecell.col
@@ -450,9 +476,13 @@ for student in list(range(0, len(studentnames))):
                             for i in range(50):
                                 try:
                                     submodulecell = grades_sheet.find(f"{target_module}.{submodule} Programs")
-                                except:
+                                except gspread.exceptions.APIError:
                                     print("API Limit Reached. Waiting for a minute")
                                     time.sleep(61)
+                                except Exception as e:
+                                    print(e)
+                                    time.sleep(60)
+                                    exit()
                                 else:
                                     break
                             col = submodulecell.col
@@ -463,9 +493,13 @@ for student in list(range(0, len(studentnames))):
                         for i in range(50):
                             try:
                                 col = grades_sheet.find(f"{target_module}.{submodule} Quiz").col
-                            except:
+                            except gspread.exceptions.APIError:
                                 print("API Limit Reached. Waiting for a minute")
                                 time.sleep(61)
+                            except Exception as e:
+                                    print(e)
+                                    time.sleep(60)
+                                    exit()
                             else:
                                 break
                         temp = quiz_sum
@@ -473,9 +507,13 @@ for student in list(range(0, len(studentnames))):
                 for i in range(50):
                     try:
                         row = grades_sheet.find(studentnames[student]).row
-                    except:
+                    except gspread.exceptions.APIError:
                         print("API Limit Reached. Waiting for a minute")
                         time.sleep(61)
+                    except Exception as e:
+                        print(e)
+                        time.sleep(60)
+                        exit()
                     else:
                         break
                 cell = gspread.cell.Cell(row, col)
@@ -483,9 +521,13 @@ for student in list(range(0, len(studentnames))):
                 for i in range(50):
                     try:
                         grades_sheet.update_acell(cell.address, temp)
-                    except:
+                    except gspread.exceptions.APIError:
                         print("API Limit Reached. Waiting for a minute")
                         time.sleep(61)
+                    except Exception as e:
+                        print(e)
+                        time.sleep(60)
+                        exit()
                     else:
                         break
 
