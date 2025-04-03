@@ -6,6 +6,9 @@ __pycache__/
 #zipped package
 *.7z
 
+#file for testing stuff
+test.py
+
 # C extensions
 *.so
 

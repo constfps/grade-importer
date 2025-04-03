@@ -344,7 +344,7 @@ for student in list(range(0, len(studentnames))):
                     break
             
         driver.find_element(By.XPATH, f"//span[text()='Unit {target_module}: Nitro']").click()
-        time.sleep(1)
+        time.sleep(2)
         inpage = False
 
         #wait for sub-modules to load
@@ -356,11 +356,11 @@ for student in list(range(0, len(studentnames))):
         )
 
         # set max sub-module count
-        target_module_max = len(driver.find_elements(By.XPATH, "//div[@class='lessons-sec module-expand']/div[@class='lazy-wrap']/div[@class='lesson-sec']"))
+        target_module_max = len(driver.find_elements(By.XPATH, f"//div[@class='lessons-sec module-expand' and @style='display: block;']/div[@class='lazy-wrap']/div"))
 
         # set sub-modules selection appropriately if all mode is selected
         if submodule_selection == "all":
-            submodules_list = range(1, target_module_max)
+            submodules_list = range(1, target_module_max + 1)
         else:
             submodules_list = submodule_selection[target_module]
 
