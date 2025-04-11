@@ -315,7 +315,7 @@ for student in list(range(0, len(studentnames))):
     driver.get("https://codehs.com/student/" + studentids[student] + "/section/" + sectionids[student] + "/assignments")
     for i in range(50):
         try:
-            WebDriverWait(driver, 5).until(
+            WebDriverWait(driver, 60).until(
             EC.presence_of_element_located((
                 By.XPATH, "//span[text()='Unit 0: Nitro']"
             )))
@@ -333,7 +333,7 @@ for student in list(range(0, len(studentnames))):
             driver.get("https://codehs.com/student/" + studentids[student] + "/section/" + sectionids[student] + "/assignments")
             for i in range(50):
                 try:
-                    WebDriverWait(driver, 5).until(
+                    WebDriverWait(driver, 60).until(
                     EC.presence_of_element_located((
                         By.XPATH, f"//span[text()='Unit {target_module}: Nitro']"
                     )))
@@ -348,7 +348,7 @@ for student in list(range(0, len(studentnames))):
         inpage = False
 
         #wait for sub-modules to load
-        WebDriverWait(driver, 5).until(
+        WebDriverWait(driver, 60).until(
             EC.presence_of_element_located((
                 By.XPATH, 
                 f"//div[@class='lazy-wrap']"
@@ -400,7 +400,7 @@ for student in list(range(0, len(studentnames))):
                         inpage = True
                         for i in range(50):
                             try:
-                                WebDriverWait(driver, 5).until(EC.presence_of_element_located((
+                                WebDriverWait(driver, 60).until(EC.presence_of_element_located((
                                     By.CLASS_NAME, "num-correct"
                                 )))
                             except:
@@ -416,7 +416,7 @@ for student in list(range(0, len(studentnames))):
                         inpage = True
                         for i in range(50):
                             try:
-                                WebDriverWait(driver, 5).until(EC.presence_of_element_located((
+                                WebDriverWait(driver, 60).until(EC.presence_of_element_located((
                                     By.XPATH, "//div[text()='Grade']"
                                 )))
                             except:
@@ -428,7 +428,7 @@ for student in list(range(0, len(studentnames))):
                         
                         for i in range(50):
                             try:
-                                WebDriverWait(driver, 5).until(EC.presence_of_element_located((
+                                WebDriverWait(driver, 60).until(EC.presence_of_element_located((
                                     By.CLASS_NAME, "grade-score"
                                 )))
                             except:
@@ -534,7 +534,7 @@ for student in list(range(0, len(studentnames))):
             if inpage:
                 # go back to initial assignments page
                 driver.get("https://codehs.com/student/" + studentids[student] + "/section/" + sectionids[student] + "/assignments")
-                WebDriverWait(driver, 5).until(
+                WebDriverWait(driver, 60).until(
                     EC.presence_of_element_located((
                         By.XPATH, f"//span[text()='Unit {target_module}: Nitro']"
                     ))
@@ -543,7 +543,7 @@ for student in list(range(0, len(studentnames))):
                 time.sleep(1)
 
                 # wait for sub-modules to load
-                WebDriverWait(driver, 5).until(
+                WebDriverWait(driver, 60).until(
                     EC.presence_of_element_located((
                         By.XPATH, 
                         f"//div[@class='lazy-wrap']"
@@ -555,5 +555,5 @@ for student in list(range(0, len(studentnames))):
 elapsed_time = timeit.default_timer() - start_time
 print(f"Took {str(datetime.timedelta(seconds=elapsed_time))} seconds")
 
-time.sleep(5)
+time.sleep(9999)
 driver.close()
