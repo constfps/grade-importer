@@ -1,5 +1,6 @@
 import sys
 import gspread
+import re
 from google.oauth2.service_account import Credentials
 from PyQt5 import QtWidgets
 from PyQt5.QtWidgets import QMainWindow, QApplication
@@ -16,19 +17,27 @@ class SpreadsheetInfo(QMainWindow):
         loadUi("main.ui", self)
         self.confirmButton.clicked.connect(self.validateSpreadsheet)
         self.setWindowIcon(QIcon("fav.jpg"))
-        self.setFixedSize(411, 260)
+        self.setFixedSize(411, 270)
 
     def validateSpreadsheet(self):
-        sheetID = self.SpreadsheetIDInput.text()
-        gradesIndex = int(self.GradesIndexInput.text())
-        studentsIDIndex = int(self.StudentIDIndexInput.text())
+        self.sheetID = self.SpreadsheetIDInput.text()
+        self.gradesIndex = int(self.GradesIndexInput.text())
+        self.studentsIDIndex = int(self.StudentIDIndexInput.text())
 
         try:
-            ids_sheet = client.open_by_key(sheetID).get_worksheet(studentsIDIndex);
-            grades_sheet = client.open_by_key(sheetID).get_worksheet(gradesIndex)
-            print("pog it works")
+            self.statusBar.showMessage("Validating input...")
+            self.ids_sheet = client.open_by_key(self.sheetID).get_worksheet(self.studentsIDIndex)
+            self.grades_sheet = client.open_by_key(self.sheetID).get_worksheet(self.gradesIndex)
+            self.statusBar.showMessage("Input valid!")
+        except gspread.exceptions.SpreadsheetNotFound:
+            self.statusBar.showMessage("Spreadsheet ID invalid. Did you share it to the API email?")
         except Exception as e:
-            print(e)
+            self.statusBar.showMessage(f"Error: {e}")
+        else:
+            self.pullNames()
+    
+    def pullNames(self):
+        self.studentNames = list(map(lambda cell: cell.value, self.ids_sheet.findall(re.compile("[A-Z]\w+, [A-Z]\w+"))))
 
 def main():
     app = QApplication(sys.argv)
