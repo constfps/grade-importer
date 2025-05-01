@@ -6,6 +6,9 @@ __pycache__/
 # C extensions
 *.so
 
+# GAPI Keys & Cookies
+keys.json
+
 # Distribution / packaging
 .Python
 build/

@@ -6,6 +6,10 @@ from PyQt5.QtWidgets import QMainWindow, QApplication
 from PyQt5.uic import loadUi
 from PyQt5.QtGui import QIcon
 
+scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+cred = Credentials.from_service_account_file("keys.json", scopes=scopes)
+client = gspread.authorize(cred)
+
 class SpreadsheetInfo(QMainWindow):
     def __init__(self):
         super(SpreadsheetInfo, self).__init__()
@@ -16,7 +20,15 @@ class SpreadsheetInfo(QMainWindow):
 
     def validateSpreadsheet(self):
         sheetID = self.SpreadsheetIDInput.text()
-        print(sheetID)
+        gradesIndex = int(self.GradesIndexInput.text())
+        studentsIDIndex = int(self.StudentIDIndexInput.text())
+
+        try:
+            ids_sheet = client.open_by_key(sheetID).get_worksheet(studentsIDIndex);
+            grades_sheet = client.open_by_key(sheetID).get_worksheet(gradesIndex)
+            print("pog it works")
+        except Exception as e:
+            print(e)
 
 def main():
     app = QApplication(sys.argv)
