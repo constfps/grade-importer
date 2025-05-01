@@ -3,12 +3,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-#zipped package
-*.7z
-
-#file for testing stuff
-test.py
-
 # C extensions
 *.so
 
@@ -178,6 +172,3 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
-
-# private stuff
-*.json
