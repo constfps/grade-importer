@@ -61,6 +61,16 @@ class StudentsList(QWidget):
     def __init__(self):
         super(StudentsList, self).__init__()
         loadUi("list.ui", self)
+        self.DeselectAll.clicked.connect(self.deselectAll)
+        self.SelectAll.clicked.connect(self.selectAll)
+
+    def deselectAll(self):
+        for item in self.table.findItems("[A-Z]\\w+, [A-Z]\\w+", Qt.MatchFlag.MatchRegularExpression):
+            item.setCheckState(Qt.CheckState.Unchecked)
+
+    def selectAll(self):
+        for item in self.table.findItems("[A-Z]\\w+, [A-Z]\\w+", Qt.MatchFlag.MatchRegularExpression):
+            item.setCheckState(Qt.CheckState.Checked)
 
     def updateTable(self, infoTable: list):
         self.table.setRowCount(len(infoTable[0]))

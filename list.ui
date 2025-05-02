@@ -23,7 +23,7 @@
    </font>
   </property>
   <property name="windowTitle">
-   <string>Form</string>
+   <string>Grade Importer</string>
   </property>
   <widget class="QPushButton" name="ConfirmButton">
    <property name="geometry">
@@ -90,6 +90,11 @@
      <width>75</width>
      <height>23</height>
     </rect>
+   </property>
+   <property name="font">
+    <font>
+     <pointsize>9</pointsize>
+    </font>
    </property>
    <property name="text">
     <string>Deselect All</string>
