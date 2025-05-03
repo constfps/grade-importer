@@ -10,10 +10,16 @@
     <height>270</height>
    </rect>
   </property>
-  <property name="windowTitle">
-   <string>Form</string>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
   </property>
-  <widget class="QTreeWidget" name="treeWidget">
+  <property name="windowTitle">
+   <string>Grade Importer</string>
+  </property>
+  <widget class="QTreeWidget" name="tree">
    <property name="geometry">
     <rect>
      <x>10</x>
@@ -30,11 +36,6 @@
      <string>1</string>
     </property>
    </column>
-   <item>
-    <property name="text">
-     <string>Unit 1</string>
-    </property>
-   </item>
   </widget>
  </widget>
  <resources/>

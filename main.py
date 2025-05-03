@@ -3,7 +3,7 @@ import gspread
 import re
 from enum import Enum
 from google.oauth2.service_account import Credentials
-from PyQt5.QtWidgets import QApplication, QTableWidgetItem, QWidget, QStackedWidget
+from PyQt5.QtWidgets import QApplication, QTableWidgetItem, QWidget, QStackedWidget, QTreeWidgetItem
 from PyQt5.uic import loadUi
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import Qt
@@ -12,7 +12,13 @@ from PyQt5.QtCore import Qt
 scopes = ["https://www.googleapis.com/auth/spreadsheets"]
 cred = Credentials.from_service_account_file("keys.json", scopes=scopes)
 client = gspread.authorize(cred)
+
+# Global vars
 studentSelection = None
+
+spreadsheet_id = None
+ids_index = None
+grades_index = None
 
 class WidgetIndexes(Enum):
     SPREADSHEET_INFO = 0
@@ -27,14 +33,18 @@ class SpreadsheetInfo(QWidget):
         self.confirmButton.clicked.connect(self.validateSpreadsheet)
 
     def validateSpreadsheet(self):
+        global spreadsheet_id
+        global ids_index
+        global grades_index
+        
         # Extract input
-        self.sheetID = self.SpreadsheetIDInput.text()
-        self.gradesIndex = int(self.GradesIndexInput.text())
-        self.studentsIDIndex = int(self.StudentIDIndexInput.text())
+        spreadsheet_id = self.SpreadsheetIDInput.text()
+        ids_index = int(self.GradesIndexInput.text())
+        grades_index = int(self.StudentIDIndexInput.text())
 
         try:
-            self.ids_sheet = client.open_by_key(self.sheetID).get_worksheet(self.studentsIDIndex)
-            self.grades_sheet = client.open_by_key(self.sheetID).get_worksheet(self.gradesIndex)
+            self.ids_sheet = client.open_by_key(spreadsheet_id).get_worksheet(grades_index)
+            self.grades_sheet = client.open_by_key(spreadsheet_id).get_worksheet(ids_index)
             self.infoTable = [
                 # Student Names
                 list(map(lambda cell: cell.value, self.ids_sheet.findall(re.compile("[A-Z]\\w+, [A-Z]\\w+")))),
@@ -55,8 +65,9 @@ class SpreadsheetInfo(QWidget):
         except Exception as e:
             print(e)
         else:
-            # Update UI & go to students list
+            # Update info needed from spreadsheet & go to students list
             self.parentWidget().widget(WidgetIndexes.STUDENTS_LIST.value).updateTable(self.infoTable)
+            self.parentWidget().widget(WidgetIndexes.UNITS_LIST.value).updateTree(self.grades_sheet)
             self.parentWidget().setCurrentIndex(WidgetIndexes.STUDENTS_LIST.value)
 
 class StudentsList(QWidget):
@@ -81,6 +92,7 @@ class StudentsList(QWidget):
     def generateSelection(self):
         global studentSelection
         studentSelection = list(map(lambda student: bool(student.checkState() == Qt.CheckState.Checked), self.table.findItems("[A-Z]\\w+, [A-Z]\\w+", Qt.MatchFlag.MatchRegularExpression)))
+        self.parentWidget().setCurrentIndex(WidgetIndexes.UNITS_LIST.value)
 
     def updateTable(self, infoTable: list):
         self.table.setRowCount(len(infoTable[0]))
@@ -98,16 +110,61 @@ class StudentsList(QWidget):
                     item.setFlags(Qt.ItemFlag.ItemIsEnabled)
                     self.table.setItem(data, info, item)
 
+class UnitsList(QWidget):
+    def __init__(self):
+        global spreadsheet_id
+        global grades_index
+        
+        super(UnitsList, self).__init__()
+        loadUi("units.ui", self)
+
+    def updateTree(self, grades_sheet: gspread.Worksheet):
+        # Grab all units from worksheet
+        data = list(map(lambda cell: cell.split(" "), list(map(lambda cell: cell.value, grades_sheet.findall(query=re.compile("^\\d{1,2}\\.\\d{1,2}\\s\\w+$"))))))
+
+        temp = []
+        for i in data:
+            if i[0] not in temp:
+                temp.append(i[0])
+        data = temp
+
+        self.units_dict = {}
+        for i in range(1, 11):
+            self.units_dict.setdefault(str(i), [])
+        for i in data:
+            x = i.split(".")
+            self.units_dict[str(x[0])].append(x[1])
+        
+        # Convert dict to QTreeWidgetItem
+        for key, value in self.units_dict.items():
+            unit = QTreeWidgetItem([f"Unit {key}"])
+            unit.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable)
+            unit.setCheckState(0, Qt.CheckState.Checked)
+
+            self.tree.addTopLevelItem(unit)
+            self.tree.itemChanged.connect(self.checkHandler)
+            for submodule in value:
+                child = QTreeWidgetItem([f"{key}.{submodule}"])
+                child.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable)
+                child.setCheckState(0, Qt.CheckState.Checked)
+                unit.addChild(child)
+    
+    def checkHandler(self):
+        for item in range(0, self.tree.topLevelItemCount()):
+            for child in range(0, self.tree.topLevelItem(item).childCount()):
+                if self.tree.topLevelItem(item).checkState(0) == Qt.CheckState.Checked:
+                    self.tree.topLevelItem(item).child(child).setCheckState(0, Qt.CheckState.Checked)
+                elif self.tree.topLevelItem(item).checkState(0) == Qt.CheckState.Unchecked:
+                    self.tree.topLevelItem(item).child(child).setCheckState(0, Qt.CheckState.Unchecked)
+
 def main():
     # boilerplate to do everything
     app = QApplication(sys.argv)
 
     ui = QStackedWidget()
-    spreadsheets = SpreadsheetInfo()
-    students = StudentsList()
-
-    ui.addWidget(spreadsheets)
-    ui.addWidget(students)
+    ui.addWidget(SpreadsheetInfo())
+    ui.addWidget(StudentsList())
+    ui.addWidget(UnitsList())
     
     ui.setWindowIcon(QIcon("fav.jpg"))
     ui.setFixedSize(411, 270)

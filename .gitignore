@@ -8,6 +8,7 @@ __pycache__/
 
 # GAPI Keys & Cookies
 keys.json
+test.py
 
 # Distribution / packaging
 .Python
