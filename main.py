@@ -13,7 +13,8 @@ scopes = ["https://www.googleapis.com/auth/spreadsheets"]
 cred = Credentials.from_service_account_file("keys.json", scopes=scopes)
 client = gspread.authorize(cred)
 
-studentSelection = None
+studentSelection = []
+unitSelection = {}
 
 spreadsheet_id = None
 ids_index = None
@@ -116,10 +117,30 @@ class UnitsList(QWidget):
         super(UnitsList, self).__init__()
         loadUi("units.ui", self)
 
+        self.tree.itemChanged.connect(self.onItemChanged)
+        self.ConfirmButton.clicked.connect(self.generateSelection)
+        self.SelectAll.clicked.connect(self.selectAll)
+        self.DeselectAll.clicked.connect(self.deselectAll)
+
+    def selectAll(self):
+        for i in range(self.tree.topLevelItemCount()):
+            self.tree.topLevelItem(i).setCheckState(0, Qt.CheckState.Checked)
+
+    def deselectAll(self):
+        for i in range(self.tree.topLevelItemCount()):
+            self.tree.topLevelItem(i).setCheckState(0, Qt.CheckState.Unchecked)
+    
+    def generateSelection(self):
+        global unitSelection
+        
+        for i in range(self.tree.topLevelItemCount()):
+            unitSelection[str(i + 1)] = []
+            for x in range(self.tree.topLevelItem(i).childCount()):
+                unitSelection[str(i + 1)].append(bool(self.tree.topLevelItem(i).child(x).checkState(0) == Qt.CheckState.Checked))
+
     def updateTree(self, grades_sheet: gspread.Worksheet):
         # Kunin lahat ng possibleng units mula sa worksheet
         data = list(map(lambda cell: cell.split(" "), list(map(lambda cell: cell.value, grades_sheet.findall(query=re.compile("^\\d{1,2}\\.\\d{1,2}\\s\\w+$"))))))
-        self.tree.itemChanged.connect(self.onItemChanged)
 
         temp = []
         for i in data:
