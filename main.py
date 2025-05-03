@@ -8,12 +8,11 @@ from PyQt5.uic import loadUi
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import Qt
 
-# auth stuff
+# Awtorisasyon
 scopes = ["https://www.googleapis.com/auth/spreadsheets"]
 cred = Credentials.from_service_account_file("keys.json", scopes=scopes)
 client = gspread.authorize(cred)
 
-# Global vars
 studentSelection = None
 
 spreadsheet_id = None
@@ -37,7 +36,7 @@ class SpreadsheetInfo(QWidget):
         global ids_index
         global grades_index
         
-        # Extract input
+        # Kunin ang mga nilagay
         spreadsheet_id = self.SpreadsheetIDInput.text()
         ids_index = int(self.GradesIndexInput.text())
         grades_index = int(self.StudentIDIndexInput.text())
@@ -46,17 +45,17 @@ class SpreadsheetInfo(QWidget):
             self.ids_sheet = client.open_by_key(spreadsheet_id).get_worksheet(grades_index)
             self.grades_sheet = client.open_by_key(spreadsheet_id).get_worksheet(ids_index)
             self.infoTable = [
-                # Student Names
+                # Mga pangalan ng mga estudyante
                 list(map(lambda cell: cell.value, self.ids_sheet.findall(re.compile("[A-Z]\\w+, [A-Z]\\w+")))),
 
-                # Student IDs
+                # Mga ID ng estudyante
                 list(map(lambda cell: int(cell.value), self.ids_sheet.findall(re.compile("^\\d+$"), in_column=2))),
 
-                # Section IDs
+                # Mga ID ng mga section
                 list(map(lambda cell: int(cell.value), self.ids_sheet.findall(re.compile("^\\d+$"), in_column=3)))
             ]
 
-            # Check if any info is missing
+            # Tignan kung may nawawalang impormasyon
             assert len(self.infoTable[0]) == len(self.infoTable[1]) and len(self.infoTable[1]) == len(self.infoTable[2]) and len(self.infoTable[2]) == len(self.infoTable[0])
         except AssertionError:
             print("Missing data")
@@ -65,7 +64,7 @@ class SpreadsheetInfo(QWidget):
         except Exception as e:
             print(e)
         else:
-            # Update info needed from spreadsheet & go to students list
+            # Baguhin yung impormasyon sa mga susunod na widget at pumunta sa listahan ng mga estudyante
             self.parentWidget().widget(WidgetIndexes.STUDENTS_LIST.value).updateTable(self.infoTable)
             self.parentWidget().widget(WidgetIndexes.UNITS_LIST.value).updateTree(self.grades_sheet)
             self.parentWidget().setCurrentIndex(WidgetIndexes.STUDENTS_LIST.value)
@@ -75,12 +74,11 @@ class StudentsList(QWidget):
         super(StudentsList, self).__init__()
         loadUi("list.ui", self)
 
-        # Connect buttons to respective methods
+        # I-konekta ang mga pindotan sa kani-kanilang function
         self.DeselectAll.clicked.connect(self.deselectAll)
         self.SelectAll.clicked.connect(self.selectAll)
         self.ConfirmButton.clicked.connect(self.generateSelection)
 
-    # I love RegEx
     def deselectAll(self):
         for item in self.table.findItems("[A-Z]\\w+, [A-Z]\\w+", Qt.MatchFlag.MatchRegularExpression):
             item.setCheckState(Qt.CheckState.Unchecked)
@@ -119,8 +117,9 @@ class UnitsList(QWidget):
         loadUi("units.ui", self)
 
     def updateTree(self, grades_sheet: gspread.Worksheet):
-        # Grab all units from worksheet
+        # Kunin lahat ng possibleng units mula sa worksheet
         data = list(map(lambda cell: cell.split(" "), list(map(lambda cell: cell.value, grades_sheet.findall(query=re.compile("^\\d{1,2}\\.\\d{1,2}\\s\\w+$"))))))
+        self.tree.itemChanged.connect(self.onItemChanged)
 
         temp = []
         for i in data:
@@ -135,30 +134,64 @@ class UnitsList(QWidget):
             x = i.split(".")
             self.units_dict[str(x[0])].append(x[1])
         
-        # Convert dict to QTreeWidgetItem
+        # ilagay ang kontento ng dict sa QTreeWidget
         for key, value in self.units_dict.items():
             unit = QTreeWidgetItem([f"Unit {key}"])
             unit.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable)
             unit.setCheckState(0, Qt.CheckState.Checked)
 
             self.tree.addTopLevelItem(unit)
-            self.tree.itemChanged.connect(self.checkHandler)
             for submodule in value:
                 child = QTreeWidgetItem([f"{key}.{submodule}"])
                 child.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable)
                 child.setCheckState(0, Qt.CheckState.Checked)
                 unit.addChild(child)
     
-    def checkHandler(self):
-        for item in range(0, self.tree.topLevelItemCount()):
-            for child in range(0, self.tree.topLevelItem(item).childCount()):
-                if self.tree.topLevelItem(item).checkState(0) == Qt.CheckState.Checked:
-                    self.tree.topLevelItem(item).child(child).setCheckState(0, Qt.CheckState.Checked)
-                elif self.tree.topLevelItem(item).checkState(0) == Qt.CheckState.Unchecked:
-                    self.tree.topLevelItem(item).child(child).setCheckState(0, Qt.CheckState.Unchecked)
+    # gitnang function ng signal
+    def onItemChanged(self, item, column):
+        if column != 0:
+            return
+        
+        # para walang di nagtatapos na recursion
+        self.tree.blockSignals(True)
+        try:
+            state = item.checkState(0)
+            self.updateChildrenCheckstate(item, state)
+            self.updateParentCheckstate(item)
+        finally:
+            self.tree.blockSignals(False)
+
+    def updateChildrenCheckstate(self, item, state):
+        for i in range(item.childCount()):
+            child = item.child(i)
+            child.setCheckState(0, state)
+            self.updateChildrenCheckstate(child, state)
+
+    def updateParentCheckstate(self, item):
+        parent = item.parent()
+        if parent is not None:
+            checked = 0
+            unchecked = 0
+            childCount = parent.childCount()
+
+            for i in range(childCount):
+                child = parent.child(i)
+                if child.checkState(0) == Qt.CheckState.Checked:
+                    checked += 1
+                elif child.checkState(0) == Qt.CheckState.Unchecked:
+                    unchecked += 1
+            
+            if checked == childCount:
+                parent.setCheckState(0, Qt.CheckState.Checked)
+            elif unchecked == childCount:
+                parent.setCheckState(0, Qt.CheckState.Unchecked)
+            else:
+                parent.setCheckState(0, Qt.CheckState.PartiallyChecked)
+            
+            self.updateParentCheckstate(parent)
 
 def main():
-    # boilerplate to do everything
+    # pag package ng mga widget sa isang pangunahing bintana
     app = QApplication(sys.argv)
 
     ui = QStackedWidget()
