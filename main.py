@@ -1,19 +1,29 @@
 import sys
+import time
 import gspread
 import re
+import json
+import threading
 from enum import Enum
 from google.oauth2.service_account import Credentials
 from PyQt5.QtWidgets import QApplication, QTableWidgetItem, QWidget, QStackedWidget, QTreeWidgetItem
 from PyQt5.uic import loadUi
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import Qt
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
 
 # Awtorisasyon
 scopes = ["https://www.googleapis.com/auth/spreadsheets"]
 cred = Credentials.from_service_account_file("keys.json", scopes=scopes)
 client = gspread.authorize(cred)
 
-studentSelection = []
+studentNames = []
+studentSelection = {}
 unitSelection = {}
 
 spreadsheet_id = None
@@ -58,6 +68,7 @@ class SpreadsheetInfo(QWidget):
 
             # Tignan kung may nawawalang impormasyon
             assert len(self.infoTable[0]) == len(self.infoTable[1]) and len(self.infoTable[1]) == len(self.infoTable[2]) and len(self.infoTable[2]) == len(self.infoTable[0])
+
         except AssertionError:
             print("Missing data")
         except gspread.exceptions.SpreadsheetNotFound:
@@ -90,7 +101,13 @@ class StudentsList(QWidget):
 
     def generateSelection(self):
         global studentSelection
-        studentSelection = list(map(lambda student: bool(student.checkState() == Qt.CheckState.Checked), self.table.findItems("[A-Z]\\w+, [A-Z]\\w+", Qt.MatchFlag.MatchRegularExpression)))
+        global studentNames
+        
+        for student in range(self.table.rowCount()):
+            if self.table.item(student, 0).checkState() == Qt.CheckState.Checked:
+                studentSelection[self.table.item(student, 1).text()] = self.table.item(student, 2).text()
+                studentNames.append(self.table.item(student, 0).text())
+
         self.parentWidget().setCurrentIndex(WidgetIndexes.UNITS_LIST.value)
 
     def updateTable(self, infoTable: list):
@@ -134,9 +151,13 @@ class UnitsList(QWidget):
         global unitSelection
         
         for i in range(self.tree.topLevelItemCount()):
-            unitSelection[str(i + 1)] = []
-            for x in range(self.tree.topLevelItem(i).childCount()):
-                unitSelection[str(i + 1)].append(bool(self.tree.topLevelItem(i).child(x).checkState(0) == Qt.CheckState.Checked))
+            if self.tree.topLevelItem(i).checkState(0) != Qt.CheckState.Unchecked:
+                unitSelection[str(i + 1)] = []
+                for x in range(self.tree.topLevelItem(i).childCount()):
+                    unitSelection[str(i + 1)].append(bool(self.tree.topLevelItem(i).child(x).checkState(0) == Qt.CheckState.Checked))
+        
+        t1 = threading.Thread(target=extraction)
+        t1.start()
 
     def updateTree(self, grades_sheet: gspread.Worksheet):
         # Kunin lahat ng possibleng units mula sa worksheet
@@ -170,11 +191,13 @@ class UnitsList(QWidget):
     
     # gitnang function ng signal
     def onItemChanged(self, item, column):
+        # kung may kagaguhan na yung column hindi 0
         if column != 0:
             return
         
         # para walang di nagtatapos na recursion
         self.tree.blockSignals(True)
+
         try:
             state = item.checkState(0)
             self.updateChildrenCheckstate(item, state)
@@ -210,6 +233,165 @@ class UnitsList(QWidget):
                 parent.setCheckState(0, Qt.CheckState.PartiallyChecked)
             
             self.updateParentCheckstate(parent)
+
+def extraction():
+    global studentSelection
+    global unitSelection
+    
+    inpage = False
+    
+    # pagka-login sa CodeHS
+    with open("cookies.json", "r") as file:
+        cookies = json.load(file)
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+    driver.get("https://codehs.com")
+    driver.maximize_window()
+    for cookie in cookies:
+        driver.add_cookie({
+            "name": cookie,
+            "value": cookies[cookie]
+        })
+    driver.refresh()
+
+    for student in studentSelection:
+        studentName = studentNames[list(studentSelection.keys()).index(student)]
+        
+        driver.get(f"https://codehs.com/student/{student}/section/{studentSelection[student]}/assignments")
+        for i in range(50):
+            try:
+                WebDriverWait(driver, 60).until(
+                EC.presence_of_element_located((
+                    By.XPATH, "//span[text()='Unit 0: Nitro']"
+                )))
+            except:
+                driver.refresh()
+                time.sleep(1)
+            else:
+                break
+        inpage = False
+
+        for target_unit in unitSelection:
+            if inpage:
+                driver.get(f"https://codehs.com/student/{student}/section/{studentSelection[student]}")
+                for i in range(50):
+                    try:
+                        WebDriverWait(driver, 60).until(
+                        EC.presence_of_element_located((
+                            By.XPATH, f"//span[text()='Unit {unit}: Nitro']"
+                        )))
+                    except:
+                        driver.refresh()
+                        time.sleep(1)
+                    else:
+                        break
+            
+            driver.find_element(By.XPATH, f"//span[text()='Unit {target_unit}: Nitro']").click()
+            time.sleep(2)
+            inpage = False
+
+            WebDriverWait(driver, 60).until(
+                EC.presence_of_element_located((
+                    By.XPATH, 
+                    f"//div[@class='lazy-wrap']"
+                ))
+            )
+
+            for subunit in range(1, len(unitSelection[target_unit])):
+                if unitSelection[target_unit][subunit-1]:
+                    micro_units_xpath = f"//div[@class='lessons-sec module-expand' and @style='display: block;']/div[@class='lazy-wrap']/div[{subunit}]/div[@class='lesson-header']/div[@class='right']/div[@class='lesson-items']/a"
+
+                    micro_units = driver.find_elements(By.XPATH, micro_units_xpath)
+                    micro_units_href = []
+                    micro_units_type = []
+
+                    for micro_unit in micro_units:
+                        if micro_unit.get_attribute("aria-label").find("Finalized") == -1:
+                            continue
+                            
+                        micro_units_href.append(micro_unit.get_attribute("href"))
+                        micro_units_type.append(micro_unit.get_attribute("class").split(" ")[0])
+                    
+                    units = dict(zip(micro_units_href, micro_units_type))
+                    unit_type = ["example", "exercise", "quiz"]
+                    
+                    quiz_sum = 0
+                    examples_sum = 0
+                    exercise_sum = 0
+                    
+                    for unit in units:
+                        if units[unit] in unit_type:
+                            if units[unit] == "quiz":
+                                driver.get(unit)
+                                inpage = True
+                                for i in range(50):
+                                    try:
+                                        WebDriverWait(driver, 60).until(EC.presence_of_element_located((
+                                            By.CLASS_NAME, "num-correct"
+                                        )))
+                                    except:
+                                        driver.refresh()
+                                    else:
+                                        break
+                                # will always be a number even if unattempted
+                                quiz_sum += int(driver.find_element(By.CLASS_NAME, "num-correct").text)
+                            elif units[unit] == "example":
+                                examples_sum += 1
+                            elif units[unit] == "exercise":
+                                driver.get(unit)
+                                inpage = True
+                                
+                                driver.get(unit)
+                                inpage = True
+                                for i in range(50):
+                                    try:
+                                        WebDriverWait(driver, 60).until(EC.presence_of_element_located((
+                                            By.XPATH, "//div[text()='Grade']"
+                                        )))
+                                    except:
+                                        driver.refresh()
+                                    else:
+                                        break
+                                
+                                driver.find_element(By.XPATH, "//div[text()='Grade']").click()
+                                
+                                for i in range(50):
+                                    try:
+                                        WebDriverWait(driver, 60).until(EC.presence_of_element_located((
+                                            By.CLASS_NAME, "grade-score"
+                                        )))
+                                    except:
+                                        driver.refresh()
+                                    else:
+                                        break
+                                
+                                grade = driver.find_element(By.CLASS_NAME, "grade-score").text
+
+                                if grade.isnumeric():
+                                    if units[unit] == "example":
+                                        examples_sum += int(grade)
+                                    else:
+                                        exercise_sum += int(grade)
+                
+                if inpage:
+                    # go back to initial assignments page
+                    driver.get("https://codehs.com/student/" + student + "/section/" + studentSelection[student] + "/assignments")
+                    WebDriverWait(driver, 60).until(
+                        EC.presence_of_element_located((
+                            By.XPATH, f"//span[text()='Unit {target_unit}: Nitro']"
+                        ))
+                    )
+                    driver.find_element(By.XPATH, f"//span[text()='Unit {target_unit}: Nitro']").click()
+                    time.sleep(1)
+
+                    # wait for sub-modules to load
+                    WebDriverWait(driver, 60).until(
+                        EC.presence_of_element_located((
+                            By.XPATH, 
+                            f"//div[@class='lazy-wrap']"
+                        ))
+                    )
+
+                    inpage = False
 
 def main():
     # pag package ng mga widget sa isang pangunahing bintana

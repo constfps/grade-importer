@@ -6,9 +6,12 @@ __pycache__/
 # C extensions
 *.so
 
-# GAPI Keys & Cookies
+# temporary files
 keys.json
+cookies.json
 test.py
+log.txt
+asdf.py
 
 # Distribution / packaging
 .Python
