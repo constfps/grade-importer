@@ -13,7 +13,7 @@
   <property name="windowTitle">
    <string>Form</string>
   </property>
-  <widget class="QPushButton" name="Abort">
+  <widget class="QPushButton" name="abortButton">
    <property name="geometry">
     <rect>
      <x>310</x>
