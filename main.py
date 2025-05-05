@@ -292,6 +292,13 @@ def extraction():
                         time.sleep(1)
                     else:
                         break
+
+                # hintaying mag load ang listahan
+                WebDriverWait(driver, 5).until(
+                    EC.presence_of_element_located((
+                        By.XPATH, 
+                        f"//div[@class='lazy-wrap']"
+                    )))   
             
             driver.find_element(By.XPATH, f"//span[text()='Unit {target_unit}: Nitro']").click()
             time.sleep(2)
@@ -303,6 +310,8 @@ def extraction():
                     micro_units_xpath = f"//div[@class='lessons-sec module-expand' and @style='display: block;']/div[@class='lazy-wrap']/div[{subunit+1}]/div[@class='lesson-header']/div[@class='right']/div[@class='lesson-items']/a"
 
                     micro_units = driver.find_elements(By.XPATH, micro_units_xpath)
+                    assert len(micro_units) > 0
+                    print(micro_units)
                     micro_units_href = []
                     micro_units_type = []
                     unit_type = ["example", "exercise", "quiz"]
@@ -378,7 +387,7 @@ def extraction():
                                 case "quiz":
                                     grade_group += "Quiz"
                                 case "exercise":
-                                    grade_group += "Programs"
+                                    grade_group += "Exercises"
                                 case "example":
                                     grade_group += "Examples"
 
@@ -400,7 +409,15 @@ def extraction():
                         ))
                     )
                     driver.find_element(By.XPATH, f"//span[text()='Unit {target_unit}: Nitro']").click()
+
+                    # hintaying mag load ang listahan
+                    WebDriverWait(driver, 5).until(
+                        EC.presence_of_element_located((
+                            By.XPATH, 
+                            f"//div[@class='lazy-wrap']"
+                        )))   
                     inpage = False
+                    time.sleep(2)
             
             print(update_queue)
             grades_worksheet.batch_update(update_queue)
