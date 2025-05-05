@@ -3,7 +3,7 @@ import time
 import gspread
 import re
 import json
-import threading
+import multiprocessing
 from enum import Enum
 from google.oauth2.service_account import Credentials
 from PyQt5.QtWidgets import QApplication, QTableWidgetItem, QWidget, QStackedWidget, QTreeWidgetItem
@@ -162,8 +162,8 @@ class UnitsList(QWidget):
                 for x in range(self.tree.topLevelItem(i).childCount()):
                     unitSelection[str(i + 1)].append(bool(self.tree.topLevelItem(i).child(x).checkState(0) == Qt.CheckState.Checked))
         
-        t1 = threading.Thread(target=extraction)
-        t1.start()
+        self.parentWidget.widget(WidgetIndexes.IDLE.value).scrape()
+        self.parentWidget.setCurrentIndex(WidgetIndexes.IDLE.value)
 
     def updateTree(self, grades_sheet: gspread.Worksheet):
         # Kunin lahat ng possibleng units mula sa worksheet
@@ -239,6 +239,19 @@ class UnitsList(QWidget):
                 parent.setCheckState(0, Qt.CheckState.PartiallyChecked)
             
             self.updateParentCheckstate(parent)
+
+class Idle(QWidget):
+    def __init__(self):
+        super(Idle, self).__init__()
+        loadUi("idle.ui")
+        self.Abort.clicked.connect(self.abort)
+    
+    def scrape(self):
+        self.scrape_process = multiprocessing.Process(target=extraction)
+        self.scrape_process.start()
+    
+    def abort(self):
+        self.scrape_process.terminate()
 
 def extraction():
     global studentSelection

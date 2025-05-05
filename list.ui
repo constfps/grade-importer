@@ -41,10 +41,10 @@
   <widget class="QTableWidget" name="table">
    <property name="geometry">
     <rect>
-     <x>10</x>
-     <y>10</y>
-     <width>391</width>
-     <height>211</height>
+     <x>0</x>
+     <y>0</y>
+     <width>411</width>
+     <height>271</height>
     </rect>
    </property>
    <property name="wordWrap">
@@ -77,6 +77,26 @@
      <string>Section ID</string>
     </property>
    </column>
+   <item row="1" column="1">
+    <property name="text">
+     <string/>
+    </property>
+   </item>
+   <item row="1" column="2">
+    <property name="text">
+     <string/>
+    </property>
+   </item>
+   <item row="2" column="2">
+    <property name="text">
+     <string/>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>16</pointsize>
+     </font>
+    </property>
+   </item>
   </widget>
   <widget class="QPushButton" name="SelectAll">
    <property name="geometry">
@@ -109,6 +129,10 @@
     <string>Deselect All</string>
    </property>
   </widget>
+  <zorder>table</zorder>
+  <zorder>SelectAll</zorder>
+  <zorder>DeselectAll</zorder>
+  <zorder>ConfirmButton</zorder>
  </widget>
  <resources/>
  <connections/>
