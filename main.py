@@ -22,6 +22,7 @@ scopes = ["https://www.googleapis.com/auth/spreadsheets"]
 cred = Credentials.from_service_account_file("keys.json", scopes=scopes)
 client = gspread.authorize(cred)
 
+grades_cells = []
 studentNames = []
 studentSelection = {}
 unitSelection = {}
@@ -29,6 +30,7 @@ unitSelection = {}
 spreadsheet_id = None
 ids_index = None
 grades_index = None
+grades_worksheet = None
 
 class WidgetIndexes(Enum):
     SPREADSHEET_INFO = 0
@@ -46,6 +48,8 @@ class SpreadsheetInfo(QWidget):
         global spreadsheet_id
         global ids_index
         global grades_index
+        global grades_cells
+        global grades_worksheet
         
         # Kunin ang mga nilagay
         spreadsheet_id = self.SpreadsheetIDInput.text()
@@ -60,15 +64,16 @@ class SpreadsheetInfo(QWidget):
                 list(map(lambda cell: cell.value, self.ids_sheet.findall(re.compile("[A-Z]\\w+, [A-Z]\\w+")))),
 
                 # Mga ID ng estudyante
-                list(map(lambda cell: int(cell.value), self.ids_sheet.findall(re.compile("^\\d+$"), in_column=2))),
+                list(map(lambda cell: int(cell.value), self.ids_sheet.findall(re.compile("^\\d+$"), in_column=self.ids_sheet.find(re.compile("[A-Z]\\w+, [A-Z]\\w+")).col+1))),
 
                 # Mga ID ng mga section
-                list(map(lambda cell: int(cell.value), self.ids_sheet.findall(re.compile("^\\d+$"), in_column=3)))
+                list(map(lambda cell: int(cell.value), self.ids_sheet.findall(re.compile("^\\d+$"), in_column=self.ids_sheet.find(re.compile("[A-Z]\\w+, [A-Z]\\w+")).col+2)))
             ]
 
             # Tignan kung may nawawalang impormasyon
             assert len(self.infoTable[0]) == len(self.infoTable[1]) and len(self.infoTable[1]) == len(self.infoTable[2]) and len(self.infoTable[2]) == len(self.infoTable[0])
-
+            grades_cells = self.grades_sheet.get_all_cells()
+            grades_worksheet = self.grades_sheet
         except AssertionError:
             print("Missing data")
         except gspread.exceptions.SpreadsheetNotFound:
@@ -150,14 +155,18 @@ class UnitsList(QWidget):
     def generateSelection(self):
         global unitSelection
         
+        unitSelection = {}
         for i in range(self.tree.topLevelItemCount()):
             if self.tree.topLevelItem(i).checkState(0) != Qt.CheckState.Unchecked:
                 unitSelection[str(i + 1)] = []
                 for x in range(self.tree.topLevelItem(i).childCount()):
                     unitSelection[str(i + 1)].append(bool(self.tree.topLevelItem(i).child(x).checkState(0) == Qt.CheckState.Checked))
         
+        extraction()
+        '''
         t1 = threading.Thread(target=extraction)
         t1.start()
+        '''
 
     def updateTree(self, grades_sheet: gspread.Worksheet):
         # Kunin lahat ng possibleng units mula sa worksheet
@@ -237,6 +246,7 @@ class UnitsList(QWidget):
 def extraction():
     global studentSelection
     global unitSelection
+    global grades_worksheet
     
     inpage = False
     
@@ -260,7 +270,7 @@ def extraction():
         for i in range(50):
             try:
                 WebDriverWait(driver, 60).until(
-                EC.presence_of_element_located((
+                EC.visibility_of_element_located((
                     By.XPATH, "//span[text()='Unit 0: Nitro']"
                 )))
             except:
@@ -271,12 +281,13 @@ def extraction():
         inpage = False
 
         for target_unit in unitSelection:
+            update_queue = []
             if inpage:
                 driver.get(f"https://codehs.com/student/{student}/section/{studentSelection[student]}")
                 for i in range(50):
                     try:
                         WebDriverWait(driver, 60).until(
-                        EC.presence_of_element_located((
+                        EC.visibility_of_element_located((
                             By.XPATH, f"//span[text()='Unit {unit}: Nitro']"
                         )))
                     except:
@@ -289,91 +300,102 @@ def extraction():
             time.sleep(2)
             inpage = False
 
-            WebDriverWait(driver, 60).until(
-                EC.presence_of_element_located((
-                    By.XPATH, 
-                    f"//div[@class='lazy-wrap']"
-                ))
-            )
-
-            for subunit in range(1, len(unitSelection[target_unit])):
-                if unitSelection[target_unit][subunit-1]:
-                    micro_units_xpath = f"//div[@class='lessons-sec module-expand' and @style='display: block;']/div[@class='lazy-wrap']/div[{subunit}]/div[@class='lesson-header']/div[@class='right']/div[@class='lesson-items']/a"
+            for subunit in range(len(unitSelection[target_unit])):
+                print(f"Processing {target_unit}.{subunit+1}")
+                if unitSelection[target_unit][subunit]:
+                    micro_units_xpath = f"//div[@class='lessons-sec module-expand' and @style='display: block;']/div[@class='lazy-wrap']/div[{subunit+1}]/div[@class='lesson-header']/div[@class='right']/div[@class='lesson-items']/a"
 
                     micro_units = driver.find_elements(By.XPATH, micro_units_xpath)
                     micro_units_href = []
                     micro_units_type = []
+                    unit_type = ["example", "exercise", "quiz"]
 
                     for micro_unit in micro_units:
                         if micro_unit.get_attribute("aria-label").find("Finalized") == -1:
                             continue
-                            
-                        micro_units_href.append(micro_unit.get_attribute("href"))
-                        micro_units_type.append(micro_unit.get_attribute("class").split(" ")[0])
+                        elif micro_unit.get_attribute("class").split(" ")[0] in unit_type:
+                            micro_units_href.append(micro_unit.get_attribute("href"))
+                            micro_units_type.append(micro_unit.get_attribute("class").split(" ")[0])
                     
                     units = dict(zip(micro_units_href, micro_units_type))
-                    unit_type = ["example", "exercise", "quiz"]
                     
                     quiz_sum = 0
-                    examples_sum = 0
+                    examples_sum = list(units.values()).count('example')
                     exercise_sum = 0
                     
                     for unit in units:
-                        if units[unit] in unit_type:
-                            if units[unit] == "quiz":
-                                driver.get(unit)
-                                inpage = True
-                                for i in range(50):
-                                    try:
-                                        WebDriverWait(driver, 60).until(EC.presence_of_element_located((
-                                            By.CLASS_NAME, "num-correct"
-                                        )))
-                                    except:
-                                        driver.refresh()
-                                    else:
-                                        break
-                                # will always be a number even if unattempted
-                                quiz_sum += int(driver.find_element(By.CLASS_NAME, "num-correct").text)
-                            elif units[unit] == "example":
-                                examples_sum += 1
-                            elif units[unit] == "exercise":
-                                driver.get(unit)
-                                inpage = True
-                                
-                                driver.get(unit)
-                                inpage = True
-                                for i in range(50):
-                                    try:
-                                        WebDriverWait(driver, 60).until(EC.presence_of_element_located((
-                                            By.XPATH, "//div[text()='Grade']"
-                                        )))
-                                    except:
-                                        driver.refresh()
-                                    else:
-                                        break
-                                
-                                driver.find_element(By.XPATH, "//div[text()='Grade']").click()
-                                
-                                for i in range(50):
-                                    try:
-                                        WebDriverWait(driver, 60).until(EC.presence_of_element_located((
-                                            By.CLASS_NAME, "grade-score"
-                                        )))
-                                    except:
-                                        driver.refresh()
-                                    else:
-                                        break
-                                
-                                grade = driver.find_element(By.CLASS_NAME, "grade-score").text
+                        if units[unit] == "quiz":
+                            driver.get(unit)
+                            inpage = True
+                            for i in range(50):
+                                try:
+                                    WebDriverWait(driver, 60).until(EC.visibility_of_element_located((
+                                        By.CLASS_NAME, "num-correct"
+                                    )))
+                                except:
+                                    driver.refresh()
+                                else:
+                                    break
+                            quiz_sum += int(driver.find_element(By.CLASS_NAME, "num-correct").text)
+                        elif units[unit] == "exercise":
+                            driver.get(unit)
+                            inpage = True
 
-                                if grade.isnumeric():
-                                    if units[unit] == "example":
-                                        examples_sum += int(grade)
-                                    else:
-                                        exercise_sum += int(grade)
+                            for i in range(50):
+                                try:
+                                    WebDriverWait(driver, 60).until(EC.visibility_of_element_located((
+                                        By.XPATH, "//div[text()='Grade']"
+                                    )))
+                                except:
+                                    driver.refresh()
+                                else:
+                                    break
+                            
+                            driver.find_element(By.XPATH, "//div[text()='Grade']").click()
+                            
+                            for i in range(50):
+                                try:
+                                    WebDriverWait(driver, 60).until(EC.visibility_of_element_located((
+                                        By.CLASS_NAME, "grade-score"
+                                    )))
+                                except:
+                                    driver.refresh()
+                                else:
+                                    break
+                            
+                            grade = driver.find_element(By.CLASS_NAME, "grade-score").text
+
+                            if grade.isnumeric:
+                                if units[unit] == "example":
+                                    examples_sum += int(grade)
+                                else:
+                                    exercise_sum += int(grade)
+                    
+                    print(f"Examples: {examples_sum}\nQuiz: {quiz_sum}\nExercises: {exercise_sum}")
+                
+                    for i in unit_type:
+                        try:
+                            grade_group = f"{target_unit}.{subunit+1} "
+
+                            match i:
+                                case "quiz":
+                                    grade_group += "Quiz"
+                                case "exercise":
+                                    grade_group += "Programs"
+                                case "example":
+                                    grade_group += "Examples"
+
+                            cell = triangulate(find_cell(studentName, grades_cells), find_cell(grade_group, grades_cells))
+                            update_queue.append({
+                                'range': cell.address,
+                                'values': [[str(quiz_sum)]]
+                            })
+                        except:
+                            continue
+
                 
                 if inpage:
-                    # go back to initial assignments page
+                    # punta sa inisyal sa pahina
                     driver.get("https://codehs.com/student/" + student + "/section/" + studentSelection[student] + "/assignments")
                     WebDriverWait(driver, 60).until(
                         EC.presence_of_element_located((
@@ -381,17 +403,16 @@ def extraction():
                         ))
                     )
                     driver.find_element(By.XPATH, f"//span[text()='Unit {target_unit}: Nitro']").click()
-                    time.sleep(1)
-
-                    # wait for sub-modules to load
-                    WebDriverWait(driver, 60).until(
-                        EC.presence_of_element_located((
-                            By.XPATH, 
-                            f"//div[@class='lazy-wrap']"
-                        ))
-                    )
-
                     inpage = False
+            
+            print(update_queue)
+            grades_worksheet.batch_update(update_queue)
+
+def find_cell(query: str, grades_cells: list):
+    return grades_cells[list(map(lambda cell: cell.value, grades_cells)).index(query)]
+
+def triangulate(row: gspread.Cell, col: gspread.Cell):
+    return gspread.Cell(row.row, col.col)
 
 def main():
     # pag package ng mga widget sa isang pangunahing bintana
