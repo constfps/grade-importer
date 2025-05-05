@@ -162,11 +162,8 @@ class UnitsList(QWidget):
                 for x in range(self.tree.topLevelItem(i).childCount()):
                     unitSelection[str(i + 1)].append(bool(self.tree.topLevelItem(i).child(x).checkState(0) == Qt.CheckState.Checked))
         
-        extraction()
-        '''
         t1 = threading.Thread(target=extraction)
         t1.start()
-        '''
 
     def updateTree(self, grades_sheet: gspread.Worksheet):
         # Kunin lahat ng possibleng units mula sa worksheet
