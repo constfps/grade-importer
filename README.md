@@ -3,6 +3,10 @@ A CodeHS Paywall Bypass because I'm lazy
 ## Setting up
 * Make sure Google Chrome is installed
 * Make a file named ***cookies.json*** and populate it with keys of of your CodeHS sessionid, uid, and username seen under Inspect Element > Application > Cookies
+* Install the following python dependencies
+```py
+pip install selenium gspread google-auth webdriver_manager
+```
     - Example:
     ```
     {
