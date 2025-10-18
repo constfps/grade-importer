@@ -3,10 +3,6 @@ A CodeHS Paywall Bypass because I'm lazy
 ## Setting up
 * Make sure Google Chrome is installed
 * Make a file named ***cookies.json*** and populate it with keys of of your CodeHS sessionid, uid, and username seen under Inspect Element > Application > Cookies
-* Install the following python dependencies
-```py
-pip install selenium gspread google-auth webdriver_manager
-```
     - Example:
     ```
     {
@@ -15,6 +11,10 @@ pip install selenium gspread google-auth webdriver_manager
         "username": "\"b'John Doe'\""
     }
     ```
+* Install the following python dependencies
+```py
+pip install selenium gspread google-auth webdriver_manager
+```
 * Include the ***keys.json*** file provided by me
 * Make a seperate sheet with students' CodeHS name, Student ID, and Section ID
 ## Usage
